@@ -92,7 +92,8 @@ shared_ptr<ASTExpr> Parser::parseAndTerm()
 
 	// PA1: This should not directly check factor
 	// but instead implement the proper grammar rule
-	retVal = parseFactor();
+	// retVal = parseFactor();
+	retVal = parseValue();
 	
 	return retVal;
 }
@@ -149,7 +150,8 @@ shared_ptr<ASTExpr> Parser::parseTerm()
 {
 	shared_ptr<ASTExpr> retVal;
 
-	// PA1: Implement
+	// PA1
+	retVal = parseValue();
 	
 	return retVal;
 }
@@ -168,7 +170,17 @@ shared_ptr<ASTExpr> Parser::parseValue()
 {
 	shared_ptr<ASTExpr> retVal;
 	
-	// PA1: Implement
+	// PA1 
+	if (peekAndConsume(Token::Not)) {
+		shared_ptr<ASTExpr> notFactor = parseFactor();
+		if (!notFactor) {
+			throw ParseExceptMsg("! should be followed by factor");
+		}
+		retVal = make_shared<ASTNotExpr>(notFactor);
+	}
+	else {
+		retVal = parseFactor();
+	}
 	
 	return retVal;
 }
@@ -184,7 +196,17 @@ shared_ptr<ASTExpr> Parser::parseFactor()
 	
 	if ((retVal = parseIdentFactor()))
 		;
-	// PA1: Add additional cases
+	// PA1
+	else if ((retVal = parseConstantFactor()))
+		;
+	else if ((retVal = parseStringFactor()))
+		;
+	else if ((retVal = parseParenFactor()))
+		;
+	else if ((retVal = parseIncFactor()))
+		;
+	else if ((retVal = parseDecFactor()))
+		; 
 	
 	return retVal;
 }
@@ -194,7 +216,14 @@ shared_ptr<ASTExpr> Parser::parseParenFactor()
 {
 	shared_ptr<ASTExpr> retVal;
 
-	// PA1: Implement
+	// PA1 
+	if (peekAndConsume(Token::LParen)) {
+		retVal = parseExpr();
+		if (!retVal) {
+			throw ParseExceptMsg("Expr should be inside paren");
+		}
+		matchToken(Token::RParen);
+	}
 	
 	return retVal;
 }
@@ -204,7 +233,11 @@ shared_ptr<ASTConstantExpr> Parser::parseConstantFactor()
 {
 	shared_ptr<ASTConstantExpr> retVal;
 
-	// PA1: Implement
+	// PA1 
+	if (peekToken() == Token::Constant) {
+		retVal = make_shared<ASTConstantExpr>(getTokenTxt());
+		consumeToken();
+	}
 	
 	return retVal;
 }
@@ -214,7 +247,11 @@ shared_ptr<ASTStringExpr> Parser::parseStringFactor()
 {
 	shared_ptr<ASTStringExpr> retVal;
 
-	// PA1: Implement
+	// PA1 
+	if (peekToken() == Token::String) {
+		retVal = make_shared<ASTStringExpr>(getTokenTxt(), mStrings);
+		consumeToken();
+	}
 	
 	return retVal;
 }
@@ -462,7 +499,16 @@ shared_ptr<ASTExpr> Parser::parseIncFactor()
 {
 	shared_ptr<ASTExpr> retVal;
 	
-	// PA1: Implement
+	// PA1 
+	if (peekAndConsume(Token::Inc)) {
+		if (peekToken() == Token::Identifier) {
+			retVal = make_shared<ASTIncExpr>(*getVariable(getTokenTxt()));
+			consumeToken();
+		}
+		else {
+			throw ParseExceptMsg("Inc should be followed by id");
+		}
+	}
 	
 	return retVal;
 }
@@ -472,7 +518,16 @@ shared_ptr<ASTExpr> Parser::parseDecFactor()
 {
 	shared_ptr<ASTExpr> retVal;
 	
-	// PA1: Implement
+	// PA1 
+	if (peekAndConsume(Token::Dec)) {
+		if (peekToken() == Token::Identifier) {
+			retVal = make_shared<ASTDecExpr>(*getVariable(getTokenTxt()));
+			consumeToken();
+		}
+		else {
+			throw ParseExceptMsg("Dec should be followed by id");
+		}
+	}
 
 	return retVal;
 }

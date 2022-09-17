@@ -200,6 +200,8 @@ shared_ptr<ASTStmt> Parser::parseStmt()
 		else if ((retVal = parseAssignStmt()))
 			;
 		// PA1: Add additional cases
+		else if ((retVal = parseReturnStmt()))
+			;
 		
 		else if (peekIsOneOf({Token::Key_int, Token::Key_char}))
 		{
@@ -236,7 +238,22 @@ shared_ptr<ASTCompoundStmt> Parser::parseCompoundStmt(bool isFuncBody)
 {
 	shared_ptr<ASTCompoundStmt> retVal;
 	
-	// PA1: Implement
+	// PA1
+	if (peekAndConsume(Token::LBrace)) {
+		auto compoundStmt = make_shared<ASTCompoundStmt>();
+
+		while (auto decl = parseDecl()) {
+			compoundStmt->addDecl(decl);
+		}
+
+		while (auto stmt = parseStmt()) {
+			compoundStmt->addStmt(stmt);
+		}
+
+		matchToken(Token::RBrace);
+
+		retVal = compoundStmt;
+	}
 	
 	return retVal;
 }
@@ -380,7 +397,12 @@ shared_ptr<ASTReturnStmt> Parser::parseReturnStmt()
 {
 	shared_ptr<ASTReturnStmt> retVal;
 	
-	// PA1: Implement
+	// PA1
+	if (peekAndConsume(Token::Key_return)) {
+		shared_ptr<ASTExpr> retExpr = parseExpr();
+		matchToken(Token::SemiColon);
+		retVal = make_shared<ASTReturnStmt>(retExpr);
+	}
 	
 	return retVal;
 }
