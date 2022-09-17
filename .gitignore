@@ -1,0 +1,8 @@
+/uscc/bin
+/uscc/llvm
+/uscc/lib
+/uscc/uscc/bin
+*.bin
+*.o
+*.a
+uscc/uscc/scan/FlexLexer.cpp
