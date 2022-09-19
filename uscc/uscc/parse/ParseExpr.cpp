@@ -90,11 +90,19 @@ shared_ptr<ASTExpr> Parser::parseAndTerm()
 {
 	shared_ptr<ASTExpr> retVal;
 
-	// PA1: This should not directly check factor
-	// but instead implement the proper grammar rule
-	// retVal = parseFactor();
-	retVal = parseTerm();
-	
+	// PA1
+	auto relExpr = parseRelExpr();
+	if (relExpr) {
+		auto andPrime = parseAndTermPrime(relExpr);
+
+		if (andPrime) {
+			retVal = andPrime;
+		}
+		else {
+			retVal = relExpr;
+		}
+	}
+
 	return retVal;
 }
 
@@ -102,7 +110,33 @@ shared_ptr<ASTLogicalAnd> Parser::parseAndTermPrime(shared_ptr<ASTExpr> lhs)
 {
 	shared_ptr<ASTLogicalAnd> retVal;
 
-	// PA1: Implement
+	// PA1 
+	if (peekToken() == Token::And) {
+		consumeToken();
+		auto binAST = make_shared<ASTLogicalAnd>();
+
+		// lhs
+		binAST->setLHS(lhs);
+
+		// rhs
+		auto rhs = parseRelExpr();
+		if (!rhs) {
+			throw OperandMissing(Token::And);
+		}
+		binAST->setRHS(rhs);
+
+		// finalize
+		binAST->finalizeOp();
+
+		auto primeTerm = parseAndTermPrime(binAST);
+
+		if (primeTerm) {
+			retVal = primeTerm;
+		}
+		else {
+			retVal = binAST;
+		}
+	}	
 	
 	return retVal;
 }
@@ -112,7 +146,18 @@ shared_ptr<ASTExpr> Parser::parseRelExpr()
 {
 	shared_ptr<ASTExpr> retVal;
 
-	// PA1: Implement
+	// PA1 
+	auto numExpr = parseNumExpr();
+	if (numExpr) {
+		auto relPrime = parseRelExprPrime(numExpr);
+
+		if (relPrime) {
+			retVal = relPrime;
+		}
+		else {
+			retVal = numExpr;
+		}
+	}
 	
 	return retVal;
 }
@@ -121,7 +166,34 @@ shared_ptr<ASTBinaryCmpOp> Parser::parseRelExprPrime(shared_ptr<ASTExpr> lhs)
 {
 	shared_ptr<ASTBinaryCmpOp> retVal;
 	
-	// PA1: Implement
+	// PA1 
+	if (peekIsOneOf({Token::EqualTo, Token::NotEqual, Token::LessThan, Token::GreaterThan})) {
+		auto binOp = peekToken();
+		consumeToken();
+		auto binAST = make_shared<ASTBinaryCmpOp>(binOp);
+
+		// lhs
+		binAST->setLHS(lhs);
+
+		// rhs
+		auto rhs = parseNumExpr();
+		if (!rhs) {
+			throw OperandMissing(binOp);
+		}
+		binAST->setRHS(rhs);
+
+		// finalize
+		binAST->finalizeOp();
+
+		auto primeTerm = parseRelExprPrime(binAST);
+
+		if (primeTerm) {
+			retVal = primeTerm;
+		}
+		else {
+			retVal = binAST;
+		}
+	}	
 	
 	return retVal;
 }
@@ -131,7 +203,18 @@ shared_ptr<ASTExpr> Parser::parseNumExpr()
 {
 	shared_ptr<ASTExpr> retVal;
 	
-	// PA1: Implement
+	// PA1 
+	shared_ptr<ASTExpr> term = parseTerm();
+	if (term) {
+		auto termPrime = parseNumExprPrime(term);
+
+		if (termPrime) {
+			retVal = termPrime;
+		}
+		else {
+			retVal = term;
+		}
+	}
 	
 	return retVal;
 }
@@ -140,7 +223,34 @@ shared_ptr<ASTBinaryMathOp> Parser::parseNumExprPrime(shared_ptr<ASTExpr> lhs)
 {
 	shared_ptr<ASTBinaryMathOp> retVal;
 
-	// PA1: Implement
+	// PA1 
+	if (peekIsOneOf({Token::Plus, Token::Minus})) {
+		auto binOp = peekToken();
+		consumeToken();
+		auto binAST = make_shared<ASTBinaryMathOp>(binOp);
+
+		// lhs
+		binAST->setLHS(lhs);
+
+		// rhs
+		auto rhs = parseTerm();
+		if (!rhs) {
+			throw OperandMissing(binOp);
+		}
+		binAST->setRHS(rhs);
+
+		// finalize
+		binAST->finalizeOp();
+
+		auto primeTerm = parseNumExprPrime(binAST);
+
+		if (primeTerm) {
+			retVal = primeTerm;
+		}
+		else {
+			retVal = binAST;
+		}
+	}
 	
 	return retVal;
 }
@@ -182,7 +292,7 @@ shared_ptr<ASTBinaryMathOp> Parser::parseTermPrime(shared_ptr<ASTExpr> lhs)
 		// rhs
 		auto rhs = parseValue();
 		if (!rhs) {
-			throw ParseExceptMsg("parseTermPrime: miss rhs");
+			throw OperandMissing(binOp);
 		}
 		binAST->setRHS(rhs);
 
@@ -244,6 +354,8 @@ shared_ptr<ASTExpr> Parser::parseFactor()
 	else if ((retVal = parseIncFactor()))
 		;
 	else if ((retVal = parseDecFactor()))
+		; 
+	else if ((retVal = parseAddrOfArrayFactor()))
 		; 
 	
 	return retVal;
@@ -575,7 +687,31 @@ shared_ptr<ASTExpr> Parser::parseAddrOfArrayFactor()
 {
 	shared_ptr<ASTExpr> retVal;
 	
-	// PA1: Implement
+	// PA1 
+	if (peekAndConsume(Token::Addr)) {
+		if (peekToken() == Token::Identifier) {
+			// id
+			auto id = getVariable(getTokenTxt());
+			consumeToken();
+			
+			// [
+			matchToken(Token::LBracket);
+
+			// expr
+			auto expr = parseExpr();
+			if (!expr) {
+				throw ParseExceptMsg("Missing required subscript expression.");
+			}
+
+			// ]
+			matchToken(Token::RBracket);
+
+			retVal = make_shared<ASTAddrOfArray>(make_shared<ASTArraySub>(*id, expr));
+		}
+		else {
+			throw ParseExceptMsg("& must be followed by an identifier.");
+		}
+	}
 	
 	return retVal;
 }

@@ -202,6 +202,14 @@ shared_ptr<ASTStmt> Parser::parseStmt()
 		// PA1: Add additional cases
 		else if ((retVal = parseReturnStmt()))
 			;
+		else if ((retVal = parseWhileStmt()))
+			;
+		else if ((retVal = parseExprStmt()))
+			;
+		else if ((retVal = parseNullStmt()))
+			;
+		else if ((retVal = parseIfStmt()))
+			;
 		
 		else if (peekIsOneOf({Token::Key_int, Token::Key_char}))
 		{
@@ -379,7 +387,29 @@ shared_ptr<ASTIfStmt> Parser::parseIfStmt()
 {
 	shared_ptr<ASTIfStmt> retVal;
 	
-	// PA1: Implement
+	// PA1 
+	if (peekAndConsume(Token::Key_if)) {
+		matchToken(Token::LParen);
+		
+		// expr
+		auto expr = parseExpr();
+		if (!expr) {
+			throw ParseExceptMsg("Invalid condition for if statement");
+		}
+		matchToken(Token::RParen);
+
+		// stmt
+		auto stmt = parseStmt();
+
+		// else
+		if (peekAndConsume(Token::Key_else)) {
+			auto else_stmt = parseStmt();
+			retVal = make_shared<ASTIfStmt>(expr, stmt, else_stmt);
+		}
+		else {
+			retVal = make_shared<ASTIfStmt>(expr, stmt);
+		}
+	}
 	
 	return retVal;
 }
@@ -388,7 +418,21 @@ shared_ptr<ASTWhileStmt> Parser::parseWhileStmt()
 {
 	shared_ptr<ASTWhileStmt> retVal;
 	
-	// PA1: Implement
+	// PA1 
+	if (peekAndConsume(Token::Key_while)) {
+		// expr
+		matchToken(Token::LParen);
+		auto expr = parseExpr();
+		if (!expr) {
+			throw ParseExceptMsg("Invalid condition for while statement");
+		}
+		matchToken(Token::RParen);
+
+		// stmt
+		auto stmt = parseStmt();
+
+		retVal = make_shared<ASTWhileStmt>(expr, stmt);
+	}
 	
 	return retVal;
 }
@@ -411,7 +455,11 @@ shared_ptr<ASTExprStmt> Parser::parseExprStmt()
 {
 	shared_ptr<ASTExprStmt> retVal;
 	
-	// PA1: Implement
+	// PA1 
+	if (auto expr = parseExpr()) {
+		matchToken(Token::SemiColon);
+		retVal = make_shared<ASTExprStmt>(expr);
+	}
 	
 	return retVal;
 }
@@ -420,7 +468,10 @@ shared_ptr<ASTNullStmt> Parser::parseNullStmt()
 {
 	shared_ptr<ASTNullStmt> retVal;
 	
-	// PA1: Implement
+	// PA1 
+	if (peekAndConsume(Token::SemiColon)) {
+		retVal = make_shared<ASTNullStmt>();
+	}
 	
 	return retVal;
 }
