@@ -93,7 +93,7 @@ shared_ptr<ASTExpr> Parser::parseAndTerm()
 	// PA1: This should not directly check factor
 	// but instead implement the proper grammar rule
 	// retVal = parseFactor();
-	retVal = parseValue();
+	retVal = parseTerm();
 	
 	return retVal;
 }
@@ -151,7 +151,16 @@ shared_ptr<ASTExpr> Parser::parseTerm()
 	shared_ptr<ASTExpr> retVal;
 
 	// PA1
-	retVal = parseValue();
+	shared_ptr<ASTExpr> tempVal = parseValue();
+	if (tempVal) {
+		shared_ptr<ASTBinaryMathOp> primeTerm = parseTermPrime(tempVal);
+		if (primeTerm) {
+			retVal = primeTerm;
+		}
+		else {
+			retVal = tempVal;
+		}
+	}
 	
 	return retVal;
 }
@@ -160,8 +169,37 @@ shared_ptr<ASTBinaryMathOp> Parser::parseTermPrime(shared_ptr<ASTExpr> lhs)
 {
 	shared_ptr<ASTBinaryMathOp> retVal;
 
-	// PA1: Implement
-	
+	// PA1 
+	// there is at least one termPrime followed
+	if (peekIsOneOf({Token::Mult, Token::Div, Token::Mod})) {
+		auto binOp = peekToken();
+		consumeToken();
+		auto binAST = make_shared<ASTBinaryMathOp>(binOp);
+
+		// lhs
+		binAST->setLHS(lhs);
+
+		// rhs
+		auto rhs = parseValue();
+		if (!rhs) {
+			throw ParseExceptMsg("parseTermPrime: miss rhs");
+		}
+		binAST->setRHS(rhs);
+
+		// finalize
+		binAST->finalizeOp();
+
+		// recursively parseTermPrime
+		shared_ptr<ASTBinaryMathOp> primeTerm = parseTermPrime(binAST);
+
+		if (primeTerm) {
+			retVal = primeTerm;
+		}
+		else {
+			retVal = binAST;
+		}
+	}
+
 	return retVal;
 }
 
@@ -174,7 +212,7 @@ shared_ptr<ASTExpr> Parser::parseValue()
 	if (peekAndConsume(Token::Not)) {
 		shared_ptr<ASTExpr> notFactor = parseFactor();
 		if (!notFactor) {
-			throw ParseExceptMsg("! should be followed by factor");
+			throw ParseExceptMsg("! must be followed by an expression.");
 		}
 		retVal = make_shared<ASTNotExpr>(notFactor);
 	}
@@ -220,7 +258,7 @@ shared_ptr<ASTExpr> Parser::parseParenFactor()
 	if (peekAndConsume(Token::LParen)) {
 		retVal = parseExpr();
 		if (!retVal) {
-			throw ParseExceptMsg("Expr should be inside paren");
+			throw ParseExceptMsg("Not a valid expression inside parenthesis");
 		}
 		matchToken(Token::RParen);
 	}
@@ -506,7 +544,7 @@ shared_ptr<ASTExpr> Parser::parseIncFactor()
 			consumeToken();
 		}
 		else {
-			throw ParseExceptMsg("Inc should be followed by id");
+			throw ParseExceptMsg("Dec must be followed by identifier");
 		}
 	}
 	
