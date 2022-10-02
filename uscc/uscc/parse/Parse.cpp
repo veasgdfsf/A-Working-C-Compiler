@@ -43,7 +43,7 @@ Parser::Parser(const char* fileName, std::ostream* errStream,
 , mColNumber(1)
 , mUnusedIdent(nullptr)
 , mNeedPrintf(false)
-, mCheckSemant(false) // PA2: Change to true
+, mCheckSemant(true) // PA2: Change to true
 , mOutputSymbols(outputSymbols)
 {
 	if (mFileStream.is_open())
