@@ -26,30 +26,30 @@ using namespace uscc::parse;
 // Returns false if this is an invalid operation.
 bool ASTLogicalAnd::finalizeOp() noexcept
 {
-	// PA2: Implement
-	
-	return true;
+	// PA2
+	mType = Type::Int;
+	return mLHS->getType() == Type::Int && mRHS->getType() == Type::Int;
 }
 
 bool ASTLogicalOr::finalizeOp() noexcept
 {
-	// PA2: Implement
-	
-	return true;
+	// PA2
+	mType = Type::Int;
+	return mLHS->getType() == Type::Int && mRHS->getType() == Type::Int;
 }
 
 bool ASTBinaryCmpOp::finalizeOp() noexcept
 {
-	// PA2: Implement
-	
-	return true;
+	// PA2
+	mType = Type::Int;
+	return mLHS->getType() == Type::Int && mRHS->getType() == Type::Int;
 }
 
 bool ASTBinaryMathOp::finalizeOp() noexcept
 {
-	// PA2: Implement
-	
-	return true;
+	// PA2
+	mType = Type::Int;
+	return mLHS->getType() == Type::Int && mRHS->getType() == Type::Int;
 }
 
 ASTConstantExpr::ASTConstantExpr(const std::string& constStr)

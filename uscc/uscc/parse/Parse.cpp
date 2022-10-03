@@ -43,7 +43,7 @@ Parser::Parser(const char* fileName, std::ostream* errStream,
 , mColNumber(1)
 , mUnusedIdent(nullptr)
 , mNeedPrintf(false)
-, mCheckSemant(false) // PA2: Change to true
+, mCheckSemant(true) // PA2: Change to true
 , mOutputSymbols(outputSymbols)
 {
 	if (mFileStream.is_open())
@@ -350,9 +350,12 @@ void Parser::displayErrors() noexcept
 
 Identifier* Parser::getVariable(const char* name) noexcept
 {
-	// PA2: Implement properly
-	
-	Identifier* ident = mSymbols.createIdentifier(name);
+	// PA2 
+	auto ident = mSymbols.getIdentifier(name);
+	if (!ident) {
+		reportSemantError("Use of undeclared identifier '" + std::string(name) + "'");
+		ident = mSymbols.getIdentifier("@@variable");
+	}
 	
 	return ident;
 }
@@ -381,21 +384,59 @@ const char* Parser::getTypeText(Type type) const noexcept
 // Otherwise it doesn't do anything.
 std::shared_ptr<ASTExpr> Parser::charToInt(std::shared_ptr<ASTExpr> expr) noexcept
 {
-	std::shared_ptr<ASTExpr> retVal = expr;
-	
-	// PA2: Implement
-	
-	return retVal;
+	// PA2 
+	if (!expr) {
+		return expr;
+	}
+
+	if (expr->getType() == Type::Char) {
+		// expr is a constant
+		if (auto constant = std::dynamic_pointer_cast<ASTConstantExpr>(expr)) {
+			constant->changeToInt();
+			return constant; 
+		}
+
+		// optimization
+		if (auto intToCharNode = std::dynamic_pointer_cast<ASTToCharExpr>(expr)) {
+			return intToCharNode->getChild();
+		}
+
+		// otherwise, create an ASTToIntExpr node and return 
+		return std::make_shared<ASTToIntExpr>(expr);
+	}
+	// it is already int
+	else {
+		return expr;
+	}
 }
 
 // Like the above, but in reverse
 std::shared_ptr<ASTExpr> Parser::intToChar(std::shared_ptr<ASTExpr> expr) noexcept
 {
-	std::shared_ptr<ASTExpr> retVal = expr;
-	
-	// PA2: Implement
-	
-	return retVal;
+	// PA2
+	if (!expr) {
+		return expr;
+	}
+
+	if (expr->getType() == Type::Int) {
+		// expr is a constant
+		if (auto constant = std::dynamic_pointer_cast<ASTConstantExpr>(expr)) {
+			constant->changeToChar();
+			return constant; 
+		}
+
+		// optimization
+		if (auto charToIntNode = std::dynamic_pointer_cast<ASTToIntExpr>(expr)) {
+			return charToIntNode->getChild();
+		}
+
+		// otherwise, create an ASTToCharExpr node and return 
+		return std::make_shared<ASTToCharExpr>(expr);
+	}
+	// it is already int
+	else {
+		return expr;
+	}
 }
 
 // The entry point for the parser
