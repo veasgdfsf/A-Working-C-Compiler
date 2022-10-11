@@ -6,3 +6,5 @@
 *.o
 *.a
 uscc/uscc/scan/FlexLexer.cpp
+*.ll
+*.bc

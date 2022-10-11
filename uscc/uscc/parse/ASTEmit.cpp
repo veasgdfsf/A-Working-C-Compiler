@@ -341,16 +341,57 @@ AST_EMIT(ASTBinaryCmpOp)
 {
 	Value* retVal = nullptr;
 	
-	// PA3: Implement
-	
-	return retVal;
+	// PA3 
+	IRBuilder<> builder(ctx.mBlock);
+
+	Value* lhs = mLHS->emitIR(ctx);
+	Value* rhs = mRHS->emitIR(ctx);
+
+	switch (mOp) {
+		case scan::Token::EqualTo:
+			retVal = builder.CreateICmpEQ(lhs, rhs, "eq");
+			break;
+		case scan::Token::NotEqual:
+			retVal = builder.CreateICmpNE(lhs, rhs, "ne");
+			break;
+		case scan::Token::LessThan:
+			retVal = builder.CreateICmpSLT(lhs, rhs, "lt");
+			break;
+		case scan::Token::GreaterThan:
+			retVal = builder.CreateICmpSGT(lhs, rhs, "gt");
+			break;
+	}
+
+	return builder.CreateZExt(retVal, llvm::Type::getInt32Ty(ctx.mGlobal));
 }
 
 AST_EMIT(ASTBinaryMathOp)
 {
 	Value* retVal = nullptr;
 	
-	// PA3: Implement
+	// PA3 
+	IRBuilder<> builder(ctx.mBlock);
+
+	Value* lhs = mLHS->emitIR(ctx);
+	Value* rhs = mRHS->emitIR(ctx);
+
+	switch (mOp) {
+		case scan::Token::Plus:
+			retVal = builder.CreateAdd(lhs, rhs, "add");
+			break;
+		case scan::Token::Minus:
+			retVal = builder.CreateSub(lhs, rhs, "minus");
+			break;
+		case scan::Token::Mult:
+			retVal = builder.CreateMul(lhs, rhs, "mult");
+			break;
+		case scan::Token::Div:
+			retVal = builder.CreateSDiv(lhs, rhs, "div");
+			break;
+		case scan::Token::Mod:
+			retVal = builder.CreateSRem(lhs, rhs, "mod");
+			break;
+	}
 	
 	return retVal;
 }
@@ -360,8 +401,17 @@ AST_EMIT(ASTNotExpr)
 {
 	Value* retVal = nullptr;
 	
-	// PA3: Implement
-	
+	// PA3 
+	IRBuilder<> builder(ctx.mBlock);
+	Value* v = mExpr->emitIR(ctx);
+	if (mType == Type::Char) {
+		retVal = builder.CreateICmpEQ(v, builder.getInt8(0));
+	}
+	else if (mType == Type::Int) {
+		retVal = builder.CreateICmpEQ(v, builder.getInt32(0));
+	}
+	retVal = builder.CreateZExt(retVal, llvm::Type::getInt32Ty(ctx.mGlobal));
+
 	return retVal;
 }
 
@@ -370,7 +420,14 @@ AST_EMIT(ASTConstantExpr)
 {
 	Value* retVal = nullptr;
 	
-	// PA3: Implement
+	// PA3 
+
+	if (mType == Type::Int) {
+		retVal = ConstantInt::get(llvm::Type::getInt32Ty(ctx.mGlobal), mValue);
+	}
+	else if (mType == Type::Char) {
+		retVal = ConstantInt::get(llvm::Type::getInt8Ty(ctx.mGlobal), mValue);
+	}
 	
 	return retVal;
 }
@@ -452,7 +509,16 @@ AST_EMIT(ASTIncExpr)
 {
 	Value* retVal = nullptr;
 	
-	// PA3: Implement
+	// PA3 
+	IRBuilder<> builder(ctx.mBlock);
+	Value* val = mIdent.readFrom(ctx);
+	if (mType == Type::Char) {
+		retVal = builder.CreateAdd(val, builder.getInt8(1));
+	}
+	else if (mType == Type::Int) {
+		retVal = builder.CreateAdd(val, builder.getInt32(1));
+	}
+	mIdent.writeTo(ctx, retVal);
 	
 	return retVal;
 }
@@ -461,7 +527,17 @@ AST_EMIT(ASTDecExpr)
 {
 	Value* retVal = nullptr;
 	
-	// PA3: Implement
+	// PA3 
+	IRBuilder<> builder(ctx.mBlock);
+	Value* val = mIdent.readFrom(ctx);
+	if (mType == Type::Char) {
+		retVal = builder.CreateSub(val, builder.getInt8(1));
+	}
+	else if (mType == Type::Int) {
+		retVal = builder.CreateSub(val, builder.getInt32(1));
+	}
+	mIdent.writeTo(ctx, retVal);
+
 	
 	return retVal;
 }
@@ -524,17 +600,25 @@ AST_EMIT(ASTDecl)
 // Statements
 AST_EMIT(ASTCompoundStmt)
 {
-	// PA3: Implement
+	// PA3 
+
+	// decl
+	for (auto& decl : mDecls) {
+		decl->emitIR(ctx);
+	}
+
+	// stmt
+	for (auto& stmt : mStmts) {
+		stmt->emitIR(ctx);
+	}
 	
 	return nullptr;
 }
 
 AST_EMIT(ASTAssignStmt)
 {
-	// This is simpler than decl because we don't allow
-	// assignments to happen later for full arrays
-	
-	// PA3: Implement
+	// PA3 
+	mIdent.writeTo(ctx, mExpr->emitIR(ctx));
 	
 	return nullptr;
 }
@@ -557,29 +641,102 @@ AST_EMIT(ASTAssignArrayStmt)
 
 AST_EMIT(ASTIfStmt)
 {
-	// PA3: Implement
+	// PA3 
+
+	// create blocks
+	auto thenBlock = BasicBlock::Create(ctx.mGlobal, "if.then", ctx.mFunc);
+	BasicBlock* elseBlock;
+	if (mElseStmt) {
+		elseBlock = BasicBlock::Create(ctx.mGlobal, "if.else", ctx.mFunc);
+	}
+	auto endBlock = BasicBlock::Create(ctx.mGlobal, "if.end", ctx.mFunc);
+
+	// append condition IR to current block
+	auto condVal = mExpr->emitIR(ctx);
+	IRBuilder<> builder(ctx.mBlock); // the mBlocks can change because of previous emitIR()
+	auto condBool = builder.CreateICmpNE(condVal, ctx.mZero);
+	if (mElseStmt) {
+		builder.CreateCondBr(condBool, thenBlock, elseBlock);
+	}
+	else {
+		builder.CreateCondBr(condBool, thenBlock, endBlock);
+	}
+
+	// then block
+	ctx.mBlock = thenBlock;
+	mThenStmt->emitIR(ctx);
+	builder.SetInsertPoint(ctx.mBlock);
+	builder.CreateBr(endBlock);
+
+	// else block
+	if (mElseStmt) {
+		ctx.mBlock = elseBlock;
+		mElseStmt->emitIR(ctx);
+		builder.SetInsertPoint(ctx.mBlock);
+		builder.CreateBr(endBlock);
+	}
+
+	ctx.mBlock = endBlock;
 	
 	return nullptr;
 }
 
 AST_EMIT(ASTWhileStmt)
 {
-	// PA3: Implement
+	// PA3 
+
+	// create blocks
+	auto condBlock = BasicBlock::Create(ctx.mGlobal, "while.cond", ctx.mFunc);
+	auto bodyBlock = BasicBlock::Create(ctx.mGlobal, "while.body", ctx.mFunc);
+	auto endBlock = BasicBlock::Create(ctx.mGlobal, "while.end", ctx.mFunc);
+
+	// unconditional branch to cond block
+	IRBuilder<> builder(ctx.mBlock);
+	builder.CreateBr(condBlock);
+
+	// emit IR for cond block
+	ctx.mBlock = condBlock;
+	auto condVal = mExpr->emitIR(ctx);
+
+	// conditonal branch from cond block
+	builder.SetInsertPoint(ctx.mBlock);
+	auto condBool = builder.CreateICmpNE(condVal, ctx.mZero);
+	builder.CreateCondBr(condBool, bodyBlock, endBlock);
+
+	// emit IR for body block
+	ctx.mBlock = bodyBlock;
+	mLoopStmt->emitIR(ctx);
+	builder.SetInsertPoint(ctx.mBlock);
+	builder.CreateBr(condBlock);
+
+	// emit IR for end block
+	ctx.mBlock = endBlock;
 	
 	return nullptr;
 }
 
 AST_EMIT(ASTReturnStmt)
 {
-	// PA3: Implement
-	
+	// PA3 
+	IRBuilder<> builder(ctx.mBlock);
+
+	// expr being returned	
+	if (mExpr) {
+		builder.CreateRet(mExpr->emitIR(ctx));
+	}
+	// void
+	else {
+		builder.CreateRetVoid();
+	}
+
 	return nullptr;
 }
 
 AST_EMIT(ASTExprStmt)
 {
-	// PA3: Implement
-	// Just emit the expression, don't care about the value
+	// PA3 
+	mExpr->emitIR(ctx);
+
 	return nullptr;
 }
 
