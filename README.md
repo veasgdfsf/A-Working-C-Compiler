@@ -1,4 +1,4 @@
-### CS502 Course Project
+## A working compiler for a C language subset
 This project, USCC, builds out a working compiler for a C language subset called USC ([language reference](./USCLanguage.pdf)). 
 USCC uses the LLVM framework as its code generation engine.
 
