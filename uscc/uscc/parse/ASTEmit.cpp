@@ -137,10 +137,10 @@ AST_EMIT(ASTFunction)
 			// (Technically, iter actually has the value of the
 			// arg, not its address...but we will use the address
 			// member for this value)
-			argIdent.setAddress(iter);
+			// argIdent.setAddress(iter);
 			
 			// PA4: Write to this identifier
-			// argIdent.writeTo(ctx, iter);
+			argIdent.writeTo(ctx, iter);
 			
 			++i;
 			++iter;
@@ -645,11 +645,16 @@ AST_EMIT(ASTIfStmt)
 
 	// create blocks
 	auto thenBlock = BasicBlock::Create(ctx.mGlobal, "if.then", ctx.mFunc);
+	ctx.mSSA.addBlock(thenBlock);
+
 	BasicBlock* elseBlock;
 	if (mElseStmt) {
 		elseBlock = BasicBlock::Create(ctx.mGlobal, "if.else", ctx.mFunc);
+		ctx.mSSA.addBlock(elseBlock);
 	}
+
 	auto endBlock = BasicBlock::Create(ctx.mGlobal, "if.end", ctx.mFunc);
+	ctx.mSSA.addBlock(endBlock);
 
 	// append condition IR to current block
 	auto condVal = mExpr->emitIR(ctx);
@@ -661,8 +666,15 @@ AST_EMIT(ASTIfStmt)
 	else {
 		builder.CreateCondBr(condBool, thenBlock, endBlock);
 	}
+	
+	// since we finish ifBlock, we can seal else/then block
+	ctx.mSSA.sealBlock(thenBlock);
+	if (mElseStmt) {
+		ctx.mSSA.sealBlock(elseBlock);
+	}
 
 	// then block
+	ctx.mSSA.sealBlock(thenBlock);
 	ctx.mBlock = thenBlock;
 	mThenStmt->emitIR(ctx);
 	builder.SetInsertPoint(ctx.mBlock);
@@ -676,6 +688,7 @@ AST_EMIT(ASTIfStmt)
 		builder.CreateBr(endBlock);
 	}
 
+	ctx.mSSA.sealBlock(endBlock);
 	ctx.mBlock = endBlock;
 	
 	return nullptr;
@@ -687,8 +700,11 @@ AST_EMIT(ASTWhileStmt)
 
 	// create blocks
 	auto condBlock = BasicBlock::Create(ctx.mGlobal, "while.cond", ctx.mFunc);
+	ctx.mSSA.addBlock(condBlock);
 	auto bodyBlock = BasicBlock::Create(ctx.mGlobal, "while.body", ctx.mFunc);
+	ctx.mSSA.addBlock(bodyBlock);
 	auto endBlock = BasicBlock::Create(ctx.mGlobal, "while.end", ctx.mFunc);
+	ctx.mSSA.addBlock(endBlock);
 
 	// unconditional branch to cond block
 	IRBuilder<> builder(ctx.mBlock);
@@ -703,12 +719,17 @@ AST_EMIT(ASTWhileStmt)
 	auto condBool = builder.CreateICmpNE(condVal, ctx.mZero);
 	builder.CreateCondBr(condBool, bodyBlock, endBlock);
 
+	// seal
+	ctx.mSSA.sealBlock(bodyBlock);
+	ctx.mSSA.sealBlock(endBlock);
+
 	// emit IR for body block
 	ctx.mBlock = bodyBlock;
 	mLoopStmt->emitIR(ctx);
 	builder.SetInsertPoint(ctx.mBlock);
 	builder.CreateBr(condBlock);
 
+	ctx.mSSA.sealBlock(condBlock);
 	// emit IR for end block
 	ctx.mBlock = endBlock;
 	
