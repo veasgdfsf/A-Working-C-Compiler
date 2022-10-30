@@ -82,7 +82,7 @@ llvm::Type* Identifier::llvmType(bool treatArrayAsPtr /* = true */) noexcept
 llvm::Value* Identifier::readFrom(CodeContext& ctx) noexcept
 {
 	// PA4
-	ctx.mSSA.readVariable(this, ctx.mBlock);
+	return ctx.mSSA.readVariable(this, ctx.mBlock);
 
 	/*
 	llvm::Value* retVal = nullptr;
