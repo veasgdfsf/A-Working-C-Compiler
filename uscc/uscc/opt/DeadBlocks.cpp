@@ -32,14 +32,39 @@ bool DeadBlocks::runOnFunction(Function& F)
 {
 	bool changed = false;
 	
-	// PA5: Implement
+	// PA5
+	std::set<BasicBlock*> visitedBlock;
+	auto begin_iter = df_ext_begin(&F, visitedBlock);
+	auto end_iter = df_ext_end(&F, visitedBlock);
+	while (begin_iter != end_iter) {
+		begin_iter ++;
+	}
+
+	std::set<BasicBlock*> unreachableBlock;
+	for (auto& BB : F) {
+		if (visitedBlock.find(&BB) == visitedBlock.end()) {
+			unreachableBlock.insert(&BB);
+			changed = true;
+		}
+	}
+
+	for (auto BB : unreachableBlock) {
+		auto begin_iter = succ_begin(BB);
+		auto end_iter = succ_end(BB);
+		while (begin_iter != end_iter) {
+			begin_iter->removePredecessor(BB);
+			begin_iter ++;
+		}
+		BB->eraseFromParent();
+	}
 	
 	return changed;
 }
 	
 void DeadBlocks::getAnalysisUsage(AnalysisUsage& Info) const
 {
-	// PA5: Implement
+	// PA5
+	Info.addRequired<ConstantBranch>(); 
 }
 
 } // opt

@@ -33,14 +33,46 @@ bool ConstantBranch::runOnFunction(Function& F)
 {
 	bool changed = false;
 	
-	// PA5: Implement
+	// PA5 
+
+	// Make a set that contains the instructions we'll remove
+	std::set<BranchInst*> removeSet;
+
+	for (auto& BB : F) {
+		for (auto& I : BB) {
+			if (BranchInst* br = dyn_cast<BranchInst>(&I)) {
+				if (br->isConditional() && isa<ConstantInt>(br->getCondition())) {
+					removeSet.insert(br);
+					changed = true;
+				}
+			}
+		}
+	}
+
+	for (auto& br : removeSet) {
+		auto cond = dyn_cast<ConstantInt>(br->getCondition())->getValue().getBoolValue();
+		auto brParent = br->getParent();
+		auto trueSucc = br->getSuccessor(0);
+		auto falseSucc = br->getSuccessor(1);
+
+		if (cond) {
+			BranchInst::Create(trueSucc, brParent);
+			falseSucc->removePredecessor(brParent);
+		}
+		else {
+			BranchInst::Create(falseSucc, brParent);
+			trueSucc->removePredecessor(brParent);
+		}
+		br->eraseFromParent();
+	}
 	
 	return changed;
 }
 
 void ConstantBranch::getAnalysisUsage(AnalysisUsage& Info) const
 {
-	// PA5: Implement
+	// PA5
+	Info.addRequired<ConstantOps>(); 
 }
 	
 } // opt

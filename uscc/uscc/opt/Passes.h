@@ -83,6 +83,12 @@ struct LICM : public LoopPass
 	
 	virtual void getAnalysisUsage(llvm::AnalysisUsage& Info) const override;
 
+	virtual bool isSafeToHoistInstr(llvm::Instruction* I);
+
+	virtual void hoistInstr(llvm::Instruction* I);
+
+	virtual void hoistPreOrder(llvm::DomTreeNode* domNode);
+
 	// Data regarding the current loop
 	llvm::Loop* mCurrLoop;
 
