@@ -13,3 +13,6 @@ Implemented an `IREmitter` that lowers various types of AST node (e.g., `While` 
 
 #### Project 4: Static Single Assignment (SSA) generation
 Implemented a fairly new approach to generate SSA form as outlined in [this paper](https://github.com/wuruoyu/CS502-Compiler/blob/master/uscc/uscc/report/Simple%20and%20Efficient%20Construction%20of%20Static%20Single%20Assignment%20Form.pdf), which directly generate SSA form from the high-level AST, without generating non-SSA form first as in Clang/LLVM. [[Handout]](https://github.com/wuruoyu/CS502-Compiler/blob/master/uscc/uscc/report/P4.pdf) [[Report]](https://github.com/wuruoyu/CS502-Compiler/blob/master/uscc/uscc/report/reportP4.pdf)
+
+#### Project 5: LLVM Optimization Passes
+Implemented three LLVM optimization passes, including constant branch folding, dead block removal and loop invariant code motion (LICM). 
