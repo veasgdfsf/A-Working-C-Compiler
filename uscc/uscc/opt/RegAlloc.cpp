@@ -66,15 +66,71 @@ static RegisterRegAlloc usccRegAlloc("uscc", "USCC register allocator",
 size_t NUM_COLORS = 4;
 
 namespace {
+	// map that keep track of the ordering of removed LiveInterval
+	std::map<LiveInterval*, int> removeIdxMap;
+
 	struct CompSpillWeight {
 		bool operator()(LiveInterval *A, LiveInterval *B) const {
-			return A->weight < B->weight;
+			return removeIdxMap[A] < removeIdxMap[B];
 		}
 	};
 }
 
 namespace {
-	// PA6: Add any global members needed
+	// PA6
+
+	class InterferenceGraph {
+	public:
+		std::vector<LiveInterval*> vertex;
+		std::vector<bool> removed;
+		int removed_counter = 0;
+		std::vector<std::set<int>> edges;
+
+		void add(LiveInterval* VirtReg) {
+			vertex.push_back(VirtReg);
+			removed.push_back(false);
+			edges.push_back(std::set<int>());
+
+			// check previous vertex for interference
+			for (int v_idx = 0; v_idx < vertex.size() - 1; v_idx ++) {
+				if (vertex[v_idx]->overlaps(*VirtReg)) {
+					edges[v_idx].insert(vertex.size() - 1);
+					edges[vertex.size() - 1].insert(v_idx);
+				}
+			}
+		}
+
+		void remove(int idx) {
+			if (removed[idx]) {
+				return;
+			}
+
+			removed[idx] = true;
+			removed_counter ++; 
+			for (int v : edges[idx]) {
+				edges[v].erase(idx);
+			}
+		}
+
+		int degree(int idx) {
+			return edges[idx].size();
+		}
+
+		bool isRemoved(int idx) {
+			return removed[idx];
+		}
+
+		bool empty() {
+			return vertex.size() == removed_counter;
+		}
+
+		void clear() {
+			vertex.clear();
+			removed.clear();
+			edges.clear();
+			removed_counter = 0;
+		}
+	};
 	
 	/// RAUSCC allocator pass
 	class RAUSCC : public MachineFunctionPass, public RegAllocBase {
@@ -82,6 +138,7 @@ namespace {
 		MachineFunction *MF;
 		
 		// PA6: Add any member variables needed
+		InterferenceGraph G;
 		
 		// state
 		std::unique_ptr<Spiller> SpillerInstance;
@@ -181,6 +238,9 @@ void RAUSCC::releaseMemory() {
 	SpillerInstance.reset();
 	
 	// PA6: Delete any member data stored for each function
+
+	G.clear();
+	removeIdxMap.clear();
 }
 
 
@@ -326,10 +386,68 @@ bool RAUSCC::runOnMachineFunction(MachineFunction &mf) {
 // Build an interference graph
 void RAUSCC::initGraph() {
 	// PA6: Implement
+
+	for (unsigned i = 0, e = MRI->getNumVirtRegs(); i != e; ++i) {
+		unsigned Reg = TargetRegisterInfo::index2VirtReg(i);
+		if (MRI->reg_nodbg_empty(Reg))
+			continue;
+		LiveInterval *VirtReg = &LIS->getInterval(Reg);
+		G.add(VirtReg);
+	}
 }
 
 void RAUSCC::simplifyGraph() {
 	// PA6: Implement
+
+	int removeIdx = 0;
+
+	while (true) {
+
+		// remove trivially vertices
+		bool flag = true;
+		while (flag) {
+			flag = false;
+			for (int v_idx = 0; v_idx < G.vertex.size(); v_idx ++) {
+				if (G.isRemoved(v_idx)) {
+					continue;
+				}
+
+				if (G.degree(v_idx) < NUM_COLORS) {
+					std::cout << "Remove candidate neighbors = "<< G.degree(v_idx) << std::endl; 
+					G.vertex[v_idx]->dump();
+
+					G.remove(v_idx);
+					removeIdxMap[G.vertex[v_idx]] = removeIdx;
+					removeIdx ++;
+					flag = true;
+				}
+			}
+		}
+
+		// see if all vertices in graph have been removed
+		if (G.empty()) {
+			break;
+		}
+
+		// find and remove a vertex according our heuristic 
+		int toRemove = -1;
+		for (int v_idx = 0; v_idx < G.vertex.size(); v_idx ++) {
+			if (G.isRemoved(v_idx)) {
+				continue;
+			}
+
+			if (toRemove == -1 || G.vertex[v_idx]->weight < G.vertex[toRemove]->weight) {
+				toRemove = v_idx;
+			}
+		}
+
+		std::cout << "Spill candidate neighbors = "<< G.degree(toRemove) << std::endl; 
+		G.vertex[toRemove]->dump();
+
+		G.remove(toRemove);
+		removeIdxMap[G.vertex[toRemove]] = removeIdx;
+		removeIdx ++;
+	}
 }
 
 FunctionPass* createUSCCRegisterAllocator() {
