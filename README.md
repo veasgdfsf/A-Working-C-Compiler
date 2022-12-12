@@ -18,4 +18,4 @@ Implemented a fairly new approach to generate SSA form as outlined in [this pape
 Implemented three LLVM optimization passes, including constant branch folding, dead block removal and loop invariant code motion (LICM). 
 
 #### Project 6: Register Allocation (via graph-coloring)
-Implemented a graph-coloring register allocator with LLVM infrastructure (using `RegAllocBase` interface), following this helpful [tutorial](https://github.com/nael8r/How-To-Write-An-LLVM-Register-Allocator). The algorithm is described in the [Chatin-Brigg’s paper](). 
+Implemented a graph-coloring register allocator with LLVM infrastructure (using `RegAllocBase` interface), following this helpful [tutorial](https://github.com/nael8r/How-To-Write-An-LLVM-Register-Allocator). The algorithm is described in the [Chatin-Brigg’s paper](https://github.com/wuruoyu/CS502-Compiler/blob/master/uscc/uscc/report/Chaitin-Briggs.pdf). 
